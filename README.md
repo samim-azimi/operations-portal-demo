@@ -95,7 +95,7 @@ These accounts are fake demo users for local testing only.
 
 | User | Email | Password |
 |---|---|---|
-| Demo Admin | `admin@example.com` | `admin123` |
+| Demo Admin | `superadmin@operations-portal.demo` | `admin123` |
 | Demo Manager | `manager@example.com` | `manager123` |
 | Demo Inventory Officer | `inventory@example.com` | `inventory123` |
 | Demo Stock Officer | `stock@example.com` | `stock123` |

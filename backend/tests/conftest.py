@@ -11,6 +11,7 @@ from app.main import app
 from app.middleware import request_limiter
 from app.models import User,UserRole
 from app.security import hash_password
+SUPER_ADMIN_EMAIL="superadmin@operations-portal.demo"
 engine=create_engine("sqlite://",connect_args={"check_same_thread":False},poolclass=StaticPool)
 TestingSession=sessionmaker(bind=engine,autoflush=False,autocommit=False)
 def override_db():
@@ -24,7 +25,7 @@ def reset_db():
     Base.metadata.drop_all(engine); Base.metadata.create_all(engine)
     db=TestingSession(); db.add_all([
         User(full_name="Admin",email="admin@test.com",password_hash=hash_password("admin123"),role=UserRole.ADMIN),
-        User(full_name="Super Admin",email="super@test.com",password_hash=hash_password("super123"),role=UserRole.SUPER_ADMIN),
+        User(full_name="Demo Admin",email=SUPER_ADMIN_EMAIL,password_hash=hash_password("admin123"),role=UserRole.SUPER_ADMIN),
         User(full_name="Support",email="support@test.com",password_hash=hash_password("support123"),role=UserRole.SUPPORT),
         User(full_name="Manager",email="manager@test.com",password_hash=hash_password("manager123"),role=UserRole.MANAGER),
         User(full_name="Inventory",email="inventory@test.com",password_hash=hash_password("inventory123"),role=UserRole.INVENTORY_OFFICER),
@@ -40,7 +41,7 @@ def support_headers(client): return {"Authorization":"Bearer "+login(client,"sup
 @pytest.fixture
 def admin_headers(client): return {"Authorization":"Bearer "+login(client,"admin@test.com","admin123")}
 @pytest.fixture
-def super_headers(client): return {"Authorization":"Bearer "+login(client,"super@test.com","super123")}
+def super_headers(client): return {"Authorization":"Bearer "+login(client,SUPER_ADMIN_EMAIL,"admin123")}
 @pytest.fixture
 def manager_headers(client): return {"Authorization":"Bearer "+login(client,"manager@test.com","manager123")}
 @pytest.fixture

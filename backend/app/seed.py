@@ -4,6 +4,8 @@ from app.models import AuditLog,Dashboard,InventoryItem,KnowledgeBaseArticle,Pri
 from app.security import hash_password
 from app.services.knowledge_search import index_article
 
+SUPER_ADMIN_EMAIL="superadmin@operations-portal.demo"
+
 ARTICLES=[
 ("Internet is slow","Network","Websites and cloud apps load slowly.","Check affected scope, run a wired speed test, restart the adapter, and escalate with results.",["internet","slow","network"]),
 ("Outlook cannot connect","Email","Outlook shows disconnected or cannot reach Microsoft 365.","Check service health and connectivity, restart Outlook, then test a new profile.",["outlook","email","m365"]),
@@ -36,7 +38,7 @@ def seed():
     Base.metadata.create_all(bind=engine); db=SessionLocal()
     try:
         demo_users=[
-            ("Demo Admin","admin@example.com","admin123",UserRole.SUPER_ADMIN,"Operations"),
+            ("Demo Admin",SUPER_ADMIN_EMAIL,"admin123",UserRole.SUPER_ADMIN,"Operations"),
             ("Demo Manager","manager@example.com","manager123",UserRole.MANAGER,"Operations"),
             ("Demo Inventory Officer","inventory@example.com","inventory123",UserRole.INVENTORY_OFFICER,"Logistics"),
             ("Demo Stock Officer","stock@example.com","stock123",UserRole.STOCK_MANAGER,"Logistics"),
@@ -44,12 +46,14 @@ def seed():
         ]
         for full_name,email,password,role,department in demo_users:
             account=db.query(User).filter_by(email=email).first()
+            if not account and role == UserRole.SUPER_ADMIN:
+                account=db.query(User).filter_by(role=UserRole.SUPER_ADMIN).first()
             if account:
-                account.full_name=full_name; account.role=role; account.department=department; account.is_active=True
+                account.full_name=full_name; account.email=email; account.role=role; account.department=department; account.is_active=True
             else:
                 db.add(User(full_name=full_name,email=email,password_hash=hash_password(password),role=role,department=department))
         db.commit()
-        admin=db.query(User).filter_by(email="admin@example.com").first(); regular=db.query(User).filter_by(email="user@example.com").first(); support=admin
+        admin=db.query(User).filter_by(email=SUPER_ADMIN_EMAIL).first(); regular=db.query(User).filter_by(email="user@example.com").first(); support=admin
         existing_categories={item.name:item for item in db.query(TicketCategory).all()}
         for name in CATEGORIES:
             if name in existing_categories:

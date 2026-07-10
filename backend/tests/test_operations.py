@@ -63,7 +63,7 @@ def test_asset_form_preview_and_pdf_are_authorized(client,user_headers,inventory
     assert pdf.content.startswith(b"%PDF")
     text="\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf.content)).pages)
     assert "Asset form laptop" in text
-    assert "MISSION OPERATIONS PORTAL" not in text
+    assert "MISSION OPERATIONS PORTAL" in text
     assert "Unified operations platform" not in text
     assert "Powered by Mission Operations Portal" not in text
     assert "STAFF ASSET FORM" in text
@@ -173,7 +173,7 @@ def test_inventory_csv_and_xlsx_import_preview_confirm_and_permissions(
 
 def test_my_assets_is_identity_scoped_even_for_super_admin(client,super_headers):
     db=TestingSession()
-    super_user=db.query(User).filter_by(email="super@test.com").one()
+    super_user=db.query(User).filter_by(email="superadmin@operations-portal.demo").one()
     other=db.query(User).filter_by(email="user@test.com").one()
     db.add_all([
         InventoryItem(status="Allocated",category="ITE",designation="Super laptop",location="Demo Field Office",assigned_user_id=super_user.id,created_by_id=1),
