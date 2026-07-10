@@ -20,7 +20,7 @@ def _text(value) -> str:
 def _demo_logo(center_style):
     if DEMO_LOGO_PATH.is_file():
         return Image(str(DEMO_LOGO_PATH), width=51 * mm, height=16.2 * mm, kind="proportional")
-    return Paragraph("<b>MISSION OPERATIONS PORTAL</b>", center_style)
+    return ""
 
 
 def _remarks(asset) -> str:
@@ -53,7 +53,7 @@ def build_asset_form_pdf(user, assets, _organization=None, signature_status=None
         topMargin=6 * mm,
         bottomMargin=6 * mm,
         title=f"Asset Form - {user.full_name}",
-        author="Mission Operations Portal",
+        author="Asset Form",
     )
     body = ParagraphStyle("asset-body", fontName="Helvetica", fontSize=6.2, leading=7.2)
     center = ParagraphStyle("asset-center", parent=body, alignment=TA_CENTER)

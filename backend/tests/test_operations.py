@@ -63,7 +63,8 @@ def test_asset_form_preview_and_pdf_are_authorized(client,user_headers,inventory
     assert pdf.content.startswith(b"%PDF")
     text="\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf.content)).pages)
     assert "Asset form laptop" in text
-    assert "MISSION OPERATIONS PORTAL" in text
+    assert "DEMO/DEMO/ITE/003" in text
+    assert "MISSION OPERATIONS PORTAL" not in text
     assert "Unified operations platform" not in text
     assert "Powered by Mission Operations Portal" not in text
     assert "STAFF ASSET FORM" in text
