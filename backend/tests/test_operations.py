@@ -3,7 +3,6 @@ from pathlib import Path
 from datetime import date
 
 from openpyxl import Workbook
-from pypdf import PdfReader
 
 from app.models import InventoryItem, StockRequest, User
 from conftest import TestingSession
@@ -51,45 +50,21 @@ def test_my_assets_only_returns_current_users_assets(client,user_headers,invento
     assert [item["designation"] for item in response.json()["items"]]==["Assigned laptop"]
 
 
-def test_asset_form_preview_and_pdf_are_authorized(client,user_headers,inventory_headers):
+def test_asset_form_endpoints_are_unavailable_in_public_demo(client,user_headers,inventory_headers):
     db=TestingSession();user=db.query(User).filter_by(email="user@test.com").one();user_id=user.id
-    db.add(InventoryItem(status="Allocated",country="DEMO",project="DEMO",category="ITE",number="003",designation="Asset form laptop",location="Demo Field Office",assigned_user_id=user.id,serial_number="ASSET-003",created_by_id=1));db.commit();db.close()
-    preview=client.get(f"/api/inventory/asset-form/preview?user_id={user_id}",headers=inventory_headers)
-    assert preview.status_code==200
-    assert preview.json()["assets"][0]["designation"]=="Asset form laptop"
-    pdf=client.get(f"/api/inventory/asset-form/export/pdf?user_id={user_id}",headers=inventory_headers)
-    assert pdf.status_code==200
-    assert pdf.headers["content-type"]=="application/pdf"
-    assert pdf.content.startswith(b"%PDF")
-    text="\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf.content)).pages)
-    assert "Asset form laptop" in text
-    assert "DEMO/DEMO/ITE/003" in text
-    assert "MISSION OPERATIONS PORTAL" not in text
-    assert "Unified operations platform" not in text
-    assert "Powered by Mission Operations Portal" not in text
-    assert "STAFF ASSET FORM" in text
-    assert client.get(f"/api/inventory/asset-form/export/pdf?user_id={user_id}",headers=user_headers).status_code==403
-
-
-def test_asset_form_has_dynamic_rows_and_repeated_headers(client,inventory_headers):
-    db=TestingSession();user=db.query(User).filter_by(email="user@test.com").one();user_id=user.id
-    db.add_all([
-        InventoryItem(
-            status="Allocated",country="DEMO",project="COO",category="ITE",number=f"{number:03d}",
-            designation=f"Dynamic asset {number:02d}",location="Demo Field Office",assigned_user_id=user.id,
-            serial_number=f"DYN-{number:03d}",created_by_id=1,
-        )
-        for number in range(1,31)
-    ])
+    db.add(InventoryItem(status="Allocated",country="DEMO",project="DEMO",category="ITE",number="003",designation="Demo laptop",location="Demo Field Office",assigned_user_id=user.id,serial_number="ASSET-003",created_by_id=1))
     db.commit();db.close()
-    preview=client.get(f"/api/inventory/asset-form/preview?user_id={user_id}",headers=inventory_headers)
-    assert preview.status_code==200 and len(preview.json()["assets"])==30
-    pdf=client.get(f"/api/inventory/asset-form/export/pdf?user_id={user_id}",headers=inventory_headers)
-    reader=PdfReader(BytesIO(pdf.content))
-    text="\n".join(page.extract_text() or "" for page in reader.pages)
-    assert len(reader.pages)>=2
-    assert all(f"DYN-{number:03d}" in text for number in range(1,31))
-    assert text.count("Log code / Code Log")>=2
+    message="Asset Form export is not available in the public demo."
+    for method,path in [
+        ("get",f"/api/inventory/asset-form/preview?user_id={user_id}"),
+        ("get",f"/api/inventory/asset-form/export/pdf?user_id={user_id}"),
+        ("get",f"/api/inventory/asset-form/signing-status?user_id={user_id}"),
+        ("post",f"/api/inventory/asset-form/signing-request?user_id={user_id}&phase=allocation"),
+    ]:
+        response=getattr(client,method)(path,headers=inventory_headers)
+        assert response.status_code==404
+        assert response.json()["detail"]==message
+    assert client.get("/api/inventory/my-assets",headers=user_headers).status_code==200
 
 
 def test_inventory_logistics_code_status_and_export_format(client,inventory_headers):
@@ -122,7 +97,6 @@ def test_inventory_logistics_code_status_and_export_format(client,inventory_head
     inventory_ui=(Path(__file__).resolve().parents[2]/"frontend/src/pages/Inventory.jsx").read_text(encoding="utf-8")
     assert '.filter(Boolean).join("/")' in inventory_ui
     assert 'const inventoryStatuses=["In Stock","Allocated","Out of Inventory"]' in inventory_ui
-    assert 'placeholder="Name, email, or department"' in inventory_ui
 
 
 def test_inventory_csv_and_xlsx_import_preview_confirm_and_permissions(
@@ -185,72 +159,6 @@ def test_my_assets_is_identity_scoped_even_for_super_admin(client,super_headers)
     response=client.get("/api/inventory/my-assets",headers=super_headers)
     assert response.status_code==200
     assert [item["designation"] for item in response.json()["items"]]==["Super laptop"]
-
-
-def test_asset_form_staff_search_and_pdf_remarks_and_return_date(client,inventory_headers):
-    db=TestingSession()
-    user=db.query(User).filter_by(email="user@test.com").one()
-    user_id=user.id
-    db.add_all([
-        InventoryItem(
-            status="Allocated",country="DEMO",project="21046",category="OF",
-            sub_category="LAP",number="020",designation="Remarked laptop",
-            location="Hidden location",assigned_user_id=user.id,condition="Hidden condition",
-            date_last_inventory="01/01/1999",remarks="Only this remark",
-            serial_number="REMARK-020",created_by_id=1,
-        ),
-        InventoryItem(
-            status="Allocated",country="DEMO",project="21046",category="OF",
-            sub_category="MON",number="021",designation="Blank remark monitor",
-            location="Hidden location",assigned_user_id=user.id,condition="Another hidden condition",
-            date_last_inventory="02/02/1998",remarks=None,
-            serial_number="REMARK-021",created_by_id=1,
-        ),
-    ])
-    db.commit();db.close()
-    search=client.get("/api/inventory/assignees?q=user%40test&limit=10",headers=inventory_headers)
-    assert search.status_code==200
-    assert [person["id"] for person in search.json()]==[user_id]
-    preview=client.get(f"/api/inventory/asset-form/preview?user_id={user_id}",headers=inventory_headers)
-    assert preview.status_code==200 and len(preview.json()["assets"])==2
-    pdf=client.get(f"/api/inventory/asset-form/export/pdf?user_id={user_id}",headers=inventory_headers)
-    assert pdf.status_code==200
-    assert pdf.headers["content-type"]=="application/pdf"
-    text="\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf.content)).pages)
-    assert "Only this remark" in text
-    assert "Hidden condition" not in text
-    assert "Another hidden condition" not in text
-    assert "01/01/1999" not in text
-    assert "02/02/1998" not in text
-    assert "Printed on" not in text and "Generated on" not in text
-
-
-def test_asset_form_creates_in_portal_allocation_signing_request(client, inventory_headers):
-    db=TestingSession()
-    user=db.query(User).filter_by(email="user@test.com").one()
-    db.add(InventoryItem(
-        status="In Stock",country="DEMO",project="21046",category="OF",
-        sub_category="LAP",number="030",designation="Signing laptop",
-        location="Demo Field Office",assigned_user_id=user.id,serial_number="SIGN-030",
-        created_by_id=1,
-    ))
-    db.commit();user_id=user.id;db.close()
-    created=client.post(
-        f"/api/inventory/asset-form/signing-request?user_id={user_id}&phase=allocation",
-        headers=inventory_headers,
-    )
-    assert created.status_code==201
-    assert created.json()["envelope_id"].startswith("ENV-")
-    status=client.get(
-        f"/api/inventory/asset-form/signing-status?user_id={user_id}",
-        headers=inventory_headers,
-    ).json()
-    assert status["overall_status"]=="Allocation Signature Pending"
-    assert status["allocation"]["recipients"][0]["role_name"]=="Employee allocation"
-    assert client.post(
-        f"/api/inventory/asset-form/signing-request?user_id={user_id}&phase=return",
-        headers=inventory_headers,
-    ).status_code==409
 
 
 def test_stock_categories_filter_items_and_hide_inactive(client,user_headers,inventory_headers):

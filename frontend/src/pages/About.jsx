@@ -4,7 +4,7 @@ import { useBranding } from "../branding";
 const features=[
   [Grid2X2,"Unified workspace","One permission-aware portal for every operational module."],
   [LifeBuoy,"Help Desk","Ticket triage, collaboration, approval, knowledge, and reporting."],
-  [PackageSearch,"IMS","Inventory assets, staff assignment, valuation, and printable asset forms."],
+  [PackageSearch,"IMS","Inventory assets, staff assignment, and valuation."],
   [Warehouse,"Stock","Category-first requests, stock cards, movements, and annual reports."],
   [BarChart3,"Dashboards","Assigned published dashboards and embedded Power BI analytics."],
   [BookOpenCheck,"Connected knowledge","Approved guidance helps teams reuse known solutions."],

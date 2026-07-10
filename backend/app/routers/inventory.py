@@ -172,6 +172,7 @@ def preview_asset_form(
     user_id: int, db: Session = Depends(get_db),
     actor: User = Depends(require_permission("can_export_asset_form")),
 ):
+    raise HTTPException(404, "Asset Form export is not available in the public demo.")
     selected, assets = asset_form_data(user_id, db)
     db.add(AuditLog(actor_id=actor.id, action="Asset form previewed", details={"user_id": user_id, "assets": len(assets)}))
     db.commit()
@@ -188,6 +189,7 @@ def asset_form_signing_status(
     user_id: int, db: Session = Depends(get_db),
     _: User = Depends(require_permission("can_export_asset_form")),
 ):
+    raise HTTPException(404, "Asset Form export is not available in the public demo.")
     selected, _ = asset_form_data(user_id, db)
     return {"user_id": selected.id, **asset_signing_status(db, user_id)}
 
@@ -200,6 +202,7 @@ def create_asset_form_signing_request(
     db: Session = Depends(get_db),
     actor: User = Depends(require_permission("can_export_asset_form")),
 ):
+    raise HTTPException(404, "Asset Form export is not available in the public demo.")
     permissions = permissions_for_role(actor.role)
     if not {"can_create_signature_envelope", "can_send_signature_envelope"}.issubset(permissions):
         raise HTTPException(403, "You cannot create and send Asset Form signing requests")
@@ -266,6 +269,7 @@ def export_asset_form(
     user_id: int, db: Session = Depends(get_db),
     actor: User = Depends(require_permission("can_export_asset_form")),
 ):
+    raise HTTPException(404, "Asset Form export is not available in the public demo.")
     selected, assets = asset_form_data(user_id, db)
     organization = db.query(OrganizationSettings).first()
     content = build_asset_form_pdf(selected, assets, organization, asset_signing_status(db, user_id))

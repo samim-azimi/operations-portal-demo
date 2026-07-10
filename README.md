@@ -9,7 +9,7 @@ This public repository uses demo data only and must not include real organizatio
 ## Features
 
 - Help Desk with ticket intake, categories, notes, attachments, knowledge suggestions, and audit history
-- IMS for inventory assets, assigned-user assets, exports, and asset forms
+- IMS for inventory assets, assigned-user assets, and exports
 - Stock for stock items, requests, approvals, stock cards, movements, and reports
 - Digital Signature for internal PDF signing workflows and verification records
 - LAN Messenger for local direct, group, and channel communication

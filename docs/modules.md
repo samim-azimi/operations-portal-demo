@@ -5,7 +5,7 @@ Mission Operations Portal is organized as independent modules behind one authent
 ## Current Modules
 
 - Help Desk: tickets, categories, notes, attachments, AI-assisted triage, and knowledge suggestions.
-- IMS: inventory assets, assigned-user assets, asset forms, exports, and audit history.
+- IMS: inventory assets, assigned-user assets, exports, and audit history.
 - Stock: stock catalog, requests, approvals, stock cards, movements, and reports.
 - Digital Signature: internal signing envelopes, signing links, PDF stamping, verification, and audit trails.
 - LAN Messenger: local office messaging, groups, channels, attachments, meetings, and call-session records.

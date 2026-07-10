@@ -21,7 +21,7 @@ class WorkspaceModule:
 # This order is the product navigation contract.
 MODULES = [
     WorkspaceModule("helpdesk", "Help Desk", "Help Desk", "Create, track, triage, and resolve support requests.", "LifeBuoy", "/helpdesk", "active", "can_access_helpdesk", "Operations"),
-    WorkspaceModule("inventory", "Inventory Management System", "IMS", "Manage inventory assets, user assignments, valuation, and asset forms.", "PackageSearch", "/inventory", "active", "can_access_inventory", "Assets"),
+    WorkspaceModule("inventory", "Inventory Management System", "IMS", "Manage inventory assets, user assignments, and valuation.", "PackageSearch", "/inventory", "active", "can_access_inventory", "Assets"),
     WorkspaceModule("stock", "Stock Management System", "Stock", "Manage stock items, employee requests, stock cards, movements, and reports.", "Warehouse", "/stock", "active", "can_access_stock", "Operations"),
     WorkspaceModule("lan_messenger", "LAN Messenger", "LAN Messenger", "LAN-first direct, group, and channel messaging with meetings and call sessions.", "MessagesSquare", "/lan-messenger", "active", "can_access_lan_messenger", "Communication"),
     WorkspaceModule("sign", "Sign", "Sign", "Internal document signing with secure links, envelope IDs, hashes, and audit trails.", "FileSignature", "/sign", "active", "can_access_sign", "Governance"),
