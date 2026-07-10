@@ -1,0 +1,23 @@
+{
+  "name": "Mission Operations Portal",
+  "short_name": "Operations",
+  "description": "Internal operations, inventory, stock, approvals, communication, and reporting platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101a2e",
+  "theme_color": "#101a2e",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

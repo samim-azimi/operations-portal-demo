@@ -1,0 +1,61 @@
+name: mission-operations-portal
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: helpdesk
+      POSTGRES_USER: helpdesk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-database-password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U helpdesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://helpdesk:${POSTGRES_PASSWORD:-change-this-database-password}@db:5432/helpdesk
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-development-only-secret}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-localhost,127.0.0.1,backend}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-helpdesk@example.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Operations Portal}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      NOTIFICATION_ADMIN_EMAILS: ${NOTIFICATION_ADMIN_EMAILS:-}
+      SIGNING_LINK_BASE_URL: ${SIGNING_LINK_BASE_URL:-http://localhost:5173/sign/review}
+      LAN_MESSENGER_INTERNAL_BASE_URL: ${LAN_MESSENGER_INTERNAL_BASE_URL:-}
+      LAN_MESSENGER_PUBLIC_BASE_URL: ${LAN_MESSENGER_PUBLIC_BASE_URL:-}
+      LAN_MESSENGER_LAN_CIDRS: ${LAN_MESSENGER_LAN_CIDRS:-192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
+      WEBRTC_STUN_URLS: ${WEBRTC_STUN_URLS:-}
+      WEBRTC_TURN_URLS: ${WEBRTC_TURN_URLS:-}
+      WEBRTC_TURN_USERNAME: ${WEBRTC_TURN_USERNAME:-}
+      WEBRTC_TURN_PASSWORD: ${WEBRTC_TURN_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports: ["8000:8000"]
+    volumes:
+      - chroma_data:/app/chroma_data
+      - upload_data:/app/uploads
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000/api
+    depends_on: [backend]
+    ports: ["5173:8080"]
+volumes:
+  postgres_data:
+  chroma_data:
+  upload_data:
+

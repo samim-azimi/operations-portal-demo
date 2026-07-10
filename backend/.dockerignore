@@ -1,0 +1,16 @@
+.venv
+__pycache__
+.pytest_cache
+helpdesk.db
+chroma_data
+.env
+.env.*
+!.env.example
+uploads
+tmp
+output
+templates
+*.log
+*.db
+*.sqlite
+*.sqlite3

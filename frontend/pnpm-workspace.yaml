@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: set this to true or false
+minimumReleaseAgeExclude:
+  - vite@8.1.2
+onlyBuiltDependencies:
+  - esbuild

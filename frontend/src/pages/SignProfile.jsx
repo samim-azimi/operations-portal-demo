@@ -1,0 +1,13 @@
+import { FileSignature, Trash2, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { api, apiBlob } from "../api";
+
+export default function SignProfile(){
+  const [data,setData]=useState(null);const [file,setFile]=useState(null);const [preview,setPreview]=useState("");const [error,setError]=useState("");const [message,setMessage]=useState("");const [busy,setBusy]=useState(false);
+  async function load(){try{const next=await api("/sign/profile/signature");setData(next);if(next.has_signature){const blob=await apiBlob("/sign/profile/signature/file");setPreview(URL.createObjectURL(blob));}else setPreview("");}catch(err){setError(err.message);}}
+  useEffect(()=>{load();return()=>preview&&URL.revokeObjectURL(preview);},[]);
+  useEffect(()=>{if(!file)return;const url=URL.createObjectURL(file);setPreview(url);return()=>URL.revokeObjectURL(url);},[file]);
+  async function upload(){setBusy(true);setError("");try{const body=new FormData();body.append("file",file);await api("/sign/profile/signature",{method:"POST",body});setFile(null);setMessage("Signature image saved.");await load();}catch(err){setError(err.message);}finally{setBusy(false);}}
+  async function remove(){setBusy(true);try{await api("/sign/profile/signature",{method:"DELETE"});setPreview("");setData({...data,has_signature:false});setMessage("Signature image removed.");}catch(err){setError(err.message);}finally{setBusy(false);}}
+  return <div className="narrow-page"><div className="pagehead"><div><span className="eyebrow">Signing identity</span><h1>My digital signature</h1><p>This image is the visible mark. Your authenticated account and audit trail remain the primary signing proof.</p></div></div><section className="panel signature-profile-card">{error&&<div className="alert error">{error}</div>}{message&&<div className="alert success">{message}</div>}<div className="signature-preview">{preview?<img src={preview} alt="Signature preview"/>:<><FileSignature/><span>No signature image uploaded</span></>}</div><div className="actions"><label className="secondary file-button"><Upload size={15}/>Choose signature<input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={e=>setFile(e.target.files[0]||null)}/></label>{file&&<button className="primary" disabled={busy} onClick={upload}>Save signature</button>}{data?.has_signature&&<button className="ghost danger" disabled={busy} onClick={remove}><Trash2 size={15}/>Remove</button>}</div><p className="form-help">PNG, JPG, or WEBP; maximum 3 MB. Transparent PNG works best. If absent, Sign creates a typed signature stamp.</p></section></div>;
+}
