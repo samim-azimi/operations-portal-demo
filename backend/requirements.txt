@@ -3,7 +3,7 @@ uvicorn[standard]==0.34.0
 sqlalchemy==2.0.36
 psycopg[binary]==3.2.3
 pydantic-settings==2.7.0
-python-jose[cryptography]==3.5.0
+PyJWT==2.10.1
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 argon2-cffi==23.1.0
@@ -14,5 +14,5 @@ chromadb==0.5.23; python_version < "3.12"
 httpx==0.28.1
 pytest==9.0.3
 reportlab==4.4.3
-pypdf==6.10.0
+pypdf==6.13.3
 openpyxl==3.1.5

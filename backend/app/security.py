@@ -3,7 +3,8 @@ from uuid import uuid4
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -72,12 +73,12 @@ def get_current_user(
             algorithms=[ALGORITHM],
             audience=settings.jwt_audience,
             issuer=settings.jwt_issuer,
-            options={"require_exp": True, "require_iat": True, "require_sub": True},
+            options={"require": ["exp", "iat", "sub"]},
         )
         if payload.get("type") != "access":
             raise credentials_error
         user_id = int(payload.get("sub", ""))
-    except (JWTError, ValueError):
+    except (PyJWTError, ValueError):
         raise credentials_error
     user = db.get(User, user_id)
     if not user or not user.is_active:
