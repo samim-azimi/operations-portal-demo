@@ -16,7 +16,7 @@ const en = {
   documents:"Documents", assets:"Assets", procurement:"Procurement", calendar:"Events",
   reports:"Reports", aiAssistant:"AI Assistant", login:"Login", logout:"Logout",
   sign:"Sign",
-  dashboards:"Dashboards", myAssets:"My Assets", assetForm:"Asset Form",
+  dashboards:"Dashboards", myAssets:"My Assets",
   stockCards:"Stock Cards", stockMovements:"Movements", stockReports:"Stock Reports",
   allRequests:"All Requests", categories:"Categories", importData:"Import",
   dashboard:"Dashboard", search:"Search", notifications:"Notifications", profile:"Profile",

@@ -43,7 +43,6 @@ STOCK_USER_PERMISSIONS = {
 INVENTORY_USER_PERMISSIONS = {"can_access_inventory", "can_view_own_assets"}
 INVENTORY_MANAGEMENT_PERMISSIONS = {
     "can_manage_inventory", "can_export_inventory", "can_import_inventory",
-    "can_export_asset_form",
 }
 STOCK_MANAGEMENT_PERMISSIONS = {
     "can_manage_stock", "can_import_stock", "can_approve_stock_requests",

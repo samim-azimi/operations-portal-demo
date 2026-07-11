@@ -17,8 +17,8 @@ class RecipientInput(BaseModel):
 
 class EnvelopeCreate(BaseModel):
     document_type: Literal[
-        "purchase_request", "purchase_order", "asset_form",
-        "stock_document", "contract", "general_document",
+        "purchase_request", "purchase_order", "stock_document",
+        "contract", "general_document",
     ] = "general_document"
     document_reference_id: str | None = Field(default=None, max_length=120)
     title: str = Field(min_length=2, max_length=220)

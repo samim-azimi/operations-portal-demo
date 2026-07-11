@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import (
-    AuditLog, FazaSignSettings, InventoryItem, SignatureAuditLog, SignatureEnvelope,
+    AuditLog, FazaSignSettings, SignatureAuditLog, SignatureEnvelope,
     SignatureRecipient, SignatureToken, SignedDocument, User, UserSignatureImage,
 )
 from app.modules import permissions_for_role
@@ -388,20 +388,6 @@ def sign(
     else:
         envelope.status = "completed"
         envelope.completed_at = datetime.now(timezone.utc)
-        if envelope.document_type == "asset_form" and envelope.document_reference_id:
-            match = re.fullmatch(r"ASSET-FORM-(\d+)-(ALLOCATION|RETURN)", envelope.document_reference_id)
-            if match:
-                staff_user_id, phase = int(match.group(1)), match.group(2)
-                new_status = "Allocated" if phase == "ALLOCATION" else "In Stock"
-                changed = db.query(InventoryItem).filter(
-                    InventoryItem.assigned_user_id == staff_user_id,
-                    InventoryItem.is_active.is_(True),
-                ).update({"status": new_status}, synchronize_session=False)
-                db.add(AuditLog(
-                    actor_id=user.id,
-                    action="Asset lifecycle signature completed",
-                    details={"user_id": staff_user_id, "phase": phase.lower(), "assets_updated": changed, "status": new_status},
-                ))
         audit(db, envelope, "envelope completed", user_id=user.id)
         creator = db.get(User, envelope.created_by_id)
         if creator:

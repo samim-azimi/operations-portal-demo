@@ -50,23 +50,6 @@ def test_my_assets_only_returns_current_users_assets(client,user_headers,invento
     assert [item["designation"] for item in response.json()["items"]]==["Assigned laptop"]
 
 
-def test_asset_form_endpoints_are_unavailable_in_public_demo(client,user_headers,inventory_headers):
-    db=TestingSession();user=db.query(User).filter_by(email="user@test.com").one();user_id=user.id
-    db.add(InventoryItem(status="Allocated",country="DEMO",project="DEMO",category="ITE",number="003",designation="Demo laptop",location="Demo Field Office",assigned_user_id=user.id,serial_number="ASSET-003",created_by_id=1))
-    db.commit();db.close()
-    message="Asset Form export is not available in the public demo."
-    for method,path in [
-        ("get",f"/api/inventory/asset-form/preview?user_id={user_id}"),
-        ("get",f"/api/inventory/asset-form/export/pdf?user_id={user_id}"),
-        ("get",f"/api/inventory/asset-form/signing-status?user_id={user_id}"),
-        ("post",f"/api/inventory/asset-form/signing-request?user_id={user_id}&phase=allocation"),
-    ]:
-        response=getattr(client,method)(path,headers=inventory_headers)
-        assert response.status_code==404
-        assert response.json()["detail"]==message
-    assert client.get("/api/inventory/my-assets",headers=user_headers).status_code==200
-
-
 def test_inventory_logistics_code_status_and_export_format(client,inventory_headers):
     payload={
         "status":"In Stock","country":"DEMO","project":"21046","category":"OF",

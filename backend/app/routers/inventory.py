@@ -1,33 +1,24 @@
 import csv
 import io
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import load_workbook
 from pydantic import ValidationError
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.database import get_db
 from app.inventory_template import INVENTORY_EXPORT_COLUMNS
-from app.models import (
-    AuditLog, InventoryItem, OrganizationSettings, SignatureEnvelope,
-    SignatureRecipient, User,
-)
-from app.modules import permissions_for_role
+from app.models import AuditLog, InventoryItem, User
 from app.pagination import page_result
 from app.schemas import (
     InventoryImportResult, InventoryImportRow, InventoryItemCreate,
     InventoryItemRead, InventoryItemUpdate, Page, UserRead,
 )
 from app.security import get_current_user, require_permission
-from app.services.email_service import deliver_notification
-from app.services.asset_form_pdf import build_asset_form_pdf
-from app.services.sign_service import activate_recipient, audit, next_number, save_bytes, sha256_bytes
-from app.stock_schemas import AssetFormPreview
 
 router = APIRouter(
     prefix="/inventory",
@@ -88,7 +79,7 @@ def inventory_assignees(
     q: str | None = Query(None, max_length=120),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    _: User = Depends(require_permission("can_export_asset_form")),
+    _: User = Depends(require_permission("can_manage_inventory")),
 ):
     query = db.query(User).filter(User.is_active.is_(True))
     if q and q.strip():
@@ -111,176 +102,6 @@ def my_assets(
         InventoryItem.assigned_user_id == user.id,
     )
     return page_result(query.order_by(InventoryItem.updated_at.desc()), page, page_size)
-
-
-def asset_form_data(user_id: int, db: Session):
-    selected = db.get(User, user_id)
-    if not selected or not selected.is_active:
-        raise HTTPException(404, "User not found")
-    assets = db.query(InventoryItem).filter(
-        InventoryItem.is_active.is_(True),
-        InventoryItem.assigned_user_id == selected.id,
-    ).order_by(InventoryItem.designation).all()
-    return selected, assets
-
-
-def asset_form_reference(user_id: int, phase: str) -> str:
-    return f"ASSET-FORM-{user_id}-{phase.upper()}"
-
-
-def latest_asset_envelope(db: Session, user_id: int, phase: str):
-    return db.query(SignatureEnvelope).filter(
-        SignatureEnvelope.document_type == "asset_form",
-        SignatureEnvelope.document_reference_id == asset_form_reference(user_id, phase),
-    ).order_by(SignatureEnvelope.created_at.desc()).first()
-
-
-def envelope_status(envelope: SignatureEnvelope | None) -> dict | None:
-    if not envelope:
-        return None
-    return {
-        "id": envelope.id,
-        "envelope_id": envelope.envelope_id,
-        "status": envelope.status,
-        "completed_at": envelope.completed_at,
-        "recipients": [{
-            "user_id": item.user_id, "full_name": item.full_name,
-            "role_name": item.role_name, "status": item.status,
-            "signed_at": item.signed_at, "verification_number": item.verification_number,
-        } for item in sorted(envelope.recipients, key=lambda row: row.routing_order)],
-    }
-
-
-def asset_signing_status(db: Session, user_id: int) -> dict:
-    allocation = latest_asset_envelope(db, user_id, "allocation")
-    returned = latest_asset_envelope(db, user_id, "return")
-    if returned and returned.status == "completed":
-        overall = "Received Back"
-    elif returned and returned.status in {"pending", "in_progress"}:
-        overall = "Return Signature Pending"
-    elif allocation and allocation.status == "completed":
-        overall = "Allocated"
-    elif allocation and allocation.status in {"pending", "in_progress"}:
-        overall = "Allocation Signature Pending"
-    else:
-        overall = "Not Signed"
-    return {"overall_status": overall, "allocation": envelope_status(allocation), "return": envelope_status(returned)}
-
-
-@router.get("/asset-form/preview", response_model=AssetFormPreview)
-def preview_asset_form(
-    user_id: int, db: Session = Depends(get_db),
-    actor: User = Depends(require_permission("can_export_asset_form")),
-):
-    raise HTTPException(404, "Asset Form export is not available in the public demo.")
-    selected, assets = asset_form_data(user_id, db)
-    db.add(AuditLog(actor_id=actor.id, action="Asset form previewed", details={"user_id": user_id, "assets": len(assets)}))
-    db.commit()
-    preview = AssetFormPreview(
-        user_id=selected.id, full_name=selected.full_name, email=selected.email,
-        department=selected.department, generated_at=datetime.now(timezone.utc), assets=assets,
-        signing=asset_signing_status(db, user_id),
-    )
-    return preview
-
-
-@router.get("/asset-form/signing-status")
-def asset_form_signing_status(
-    user_id: int, db: Session = Depends(get_db),
-    _: User = Depends(require_permission("can_export_asset_form")),
-):
-    raise HTTPException(404, "Asset Form export is not available in the public demo.")
-    selected, _ = asset_form_data(user_id, db)
-    return {"user_id": selected.id, **asset_signing_status(db, user_id)}
-
-
-@router.post("/asset-form/signing-request", status_code=201)
-def create_asset_form_signing_request(
-    user_id: int,
-    background: BackgroundTasks,
-    phase: str = Query(pattern="^(allocation|return)$"),
-    db: Session = Depends(get_db),
-    actor: User = Depends(require_permission("can_export_asset_form")),
-):
-    raise HTTPException(404, "Asset Form export is not available in the public demo.")
-    permissions = permissions_for_role(actor.role)
-    if not {"can_create_signature_envelope", "can_send_signature_envelope"}.issubset(permissions):
-        raise HTTPException(403, "You cannot create and send Asset Form signing requests")
-    selected, assets = asset_form_data(user_id, db)
-    if not assets:
-        raise HTTPException(422, "No assigned assets were found for this staff member")
-    if phase == "return":
-        allocation = latest_asset_envelope(db, user_id, "allocation")
-        if not allocation or allocation.status != "completed":
-            raise HTTPException(409, "Allocation signatures must be completed before return signing")
-    current = latest_asset_envelope(db, user_id, phase)
-    if current and current.status in {"draft", "pending", "in_progress"}:
-        raise HTTPException(409, f"{phase.title()} signing is already in progress")
-    content = build_asset_form_pdf(selected, assets, None, asset_signing_status(db, user_id))
-    stored = save_bytes("original-documents", content, ".pdf")
-    document_hash = sha256_bytes(content)
-    envelope = SignatureEnvelope(
-        envelope_id=next_number(db, SignatureEnvelope, "envelope_id", "ENV"),
-        document_type="asset_form",
-        document_reference_id=asset_form_reference(user_id, phase),
-        title=f"Asset Form - {selected.full_name} - {phase.title()}",
-        subject=f"Asset Form {phase.title()} Signature Required",
-        message=f"Please review and sign the {phase} section of your Asset Form.",
-        status="draft", routing_mode="sequential",
-        original_pdf_path=stored, original_pdf_hash=document_hash,
-        current_document_hash=document_hash, created_by_id=actor.id,
-    )
-    db.add(envelope)
-    db.flush()
-    recipients = [(selected, f"Employee {phase}")]
-    if actor.id != selected.id:
-        logistics_role = "Logistics issued assets" if phase == "allocation" else "Logistics received assets"
-        recipients.append((actor, logistics_role))
-    for order, (recipient_user, role_name) in enumerate(recipients, 1):
-        if phase == "allocation":
-            signature_x = 0.47 if order == 1 else 0.68
-        else:
-            signature_x = 0.58 if order == 1 else 0.79
-        db.add(SignatureRecipient(
-            envelope_db_id=envelope.id, user_id=recipient_user.id,
-            full_name=recipient_user.full_name, email=recipient_user.email,
-            role_name=role_name, routing_order=order,
-            signature_page=1, signature_x=signature_x, signature_y=0.46,
-            signature_width=0.105, signature_height=0.12,
-        ))
-    db.flush()
-    first = sorted(envelope.recipients, key=lambda item: item.routing_order)[0]
-    signing_url, notification_id = activate_recipient(db, envelope, first)
-    envelope.status = "pending"
-    audit(db, envelope, "asset form envelope created and sent", user_id=actor.id, recipient_id=first.id, details={"phase": phase, "assets": len(assets)})
-    db.add(AuditLog(actor_id=actor.id, action="Asset form signing requested", details={"user_id": user_id, "phase": phase, "envelope_id": envelope.envelope_id}))
-    db.commit()
-    if notification_id:
-        background.add_task(deliver_notification, notification_id)
-    return {
-        "id": envelope.id, "envelope_id": envelope.envelope_id,
-        "status": envelope.status, "phase": phase,
-        "signing_url": signing_url if settings.environment == "development" else None,
-    }
-
-
-@router.get("/asset-form/export/pdf")
-def export_asset_form(
-    user_id: int, db: Session = Depends(get_db),
-    actor: User = Depends(require_permission("can_export_asset_form")),
-):
-    raise HTTPException(404, "Asset Form export is not available in the public demo.")
-    selected, assets = asset_form_data(user_id, db)
-    organization = db.query(OrganizationSettings).first()
-    content = build_asset_form_pdf(selected, assets, organization, asset_signing_status(db, user_id))
-    db.add(AuditLog(actor_id=actor.id, action="Asset form PDF exported", details={"user_id": user_id, "assets": len(assets)}))
-    db.commit()
-    safe_name = re.sub(r"[^A-Za-z0-9_-]", "_", selected.full_name).strip("_")
-    filename = f"Asset_Form_{safe_name}_{date.today():%Y-%m-%d}.pdf"
-    return StreamingResponse(
-        io.BytesIO(content), media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"', "X-Content-Type-Options": "nosniff"},
-    )
 
 
 @router.get("/items/export/csv")

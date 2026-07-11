@@ -18,7 +18,7 @@ class AssistantQuestion(BaseModel):
 
 QUICK_GUIDES = [
     ({"ticket", "issue", "support", "problem"}, "Create a Help Desk ticket with a clear subject, category, priority, description, and screenshot. You can follow every update under My Tickets.", "/submit"),
-    ({"asset", "laptop", "equipment", "ims"}, "Open IMS to review assets assigned to you. Inventory officers can register items and prepare Asset Forms.", "/inventory/my-assets"),
+    ({"asset", "laptop", "equipment", "ims"}, "Open IMS to review assets assigned to you. Inventory officers can register and manage inventory items.", "/inventory/my-assets"),
     ({"stock", "mouse", "keyboard", "request"}, "Open Stock to browse available items and submit an internal material request. Quantity is reduced only after delivery.", "/stock"),
     ({"sign", "signature", "approve", "document"}, "Open Sign to review documents inside the portal. The portal records your identity, timestamp, verification number, and document hash.", "/sign"),
     ({"message", "chat", "call", "meeting"}, "Open LAN Messenger for internal chats, groups, attachments, meetings, and call sessions.", "/lan-messenger"),

@@ -1,4 +1,4 @@
-import { Download, FileText, PackageSearch, Pencil, Plus, Search, Upload, UserRound, X } from "lucide-react";
+import { Download, PackageSearch, Pencil, Plus, Search, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { api, downloadProtected } from "../api";
@@ -20,32 +20,21 @@ const groups=[
 
 export default function Inventory(){
   const {user}=useAuth();const {t}=useTranslation();const location=useLocation();
-  const manage=canAccess(user,"can_manage_inventory");const exportForm=false;
-  const requestedMode=location.pathname.includes("my-assets")?"my":location.pathname.includes("asset-form")?"form":"register";
+  const manage=canAccess(user,"can_manage_inventory");
+  const requestedMode=location.pathname.includes("my-assets")?"my":"register";
   const mode=!manage?"my":requestedMode;
   const [data,setData]=useState({items:[],total:0,pages:0});const [page,setPage]=useState(1);const [q,setQ]=useState("");
   const [filters,setFilters]=useState({category:"",location:"",status:""});const [loading,setLoading]=useState(true);const [error,setError]=useState("");
   const [formOpen,setFormOpen]=useState(false);const [editing,setEditing]=useState(null);const [form,setForm]=useState({...blank});
-  const [assignees,setAssignees]=useState([]);const [selectedUser,setSelectedUser]=useState("");const [selectedStaff,setSelectedStaff]=useState(null);const [assetPreview,setAssetPreview]=useState(null);
-  const [staffQuery,setStaffQuery]=useState("");const [staffResults,setStaffResults]=useState([]);const [staffSearching,setStaffSearching]=useState(false);
+  const [assignees,setAssignees]=useState([]);
   const [importFile,setImportFile]=useState(null);const [importResult,setImportResult]=useState(null);const [importing,setImporting]=useState(false);
-  const [signingBusy,setSigningBusy]=useState("");const [signingMessage,setSigningMessage]=useState("");
   useEffect(()=>{if(manage)api("/inventory/assignees?limit=100").then(setAssignees).catch(()=>{});},[manage]);
-  useEffect(()=>{
-    if(mode!=="form"||!exportForm||selectedStaff)return;
-    const timer=setTimeout(async()=>{setStaffSearching(true);try{setStaffResults(await api(`/inventory/assignees?${new URLSearchParams({q:staffQuery,limit:20})}`));}catch(err){setError(err.message);}finally{setStaffSearching(false);}},250);
-    return()=>clearTimeout(timer);
-  },[mode,exportForm,staffQuery,selectedStaff]);
-  async function load(){if(mode==="form"){setLoading(false);return;}setLoading(true);setError("");try{if(mode==="my")setData(await api(`/inventory/my-assets?page=${page}&page_size=25`));else{const p=new URLSearchParams({page,page_size:25,...filters});if(q)p.set("q",q);setData(await api(`/inventory/items?${p}`));}}catch(err){setError(err.message);}finally{setLoading(false);}}
+  async function load(){setLoading(true);setError("");try{if(mode==="my")setData(await api(`/inventory/my-assets?page=${page}&page_size=25`));else{const p=new URLSearchParams({page,page_size:25,...filters});if(q)p.set("q",q);setData(await api(`/inventory/items?${p}`));}}catch(err){setError(err.message);}finally{setLoading(false);}}
   useEffect(()=>{const timer=setTimeout(load,220);return()=>clearTimeout(timer);},[mode,page,q,filters.category,filters.location,filters.status]);
   function openForm(item=null){setEditing(item);setForm(item?{...blank,...item,assigned_user_id:item.assigned_user_id||""}:{...blank});setFormOpen(true);}
   async function save(e){e.preventDefault();setError("");try{const payload={...form,assigned_user_id:form.assigned_user_id?Number(form.assigned_user_id):null};await api(editing?`/inventory/items/${editing.id}`:"/inventory/items",{method:editing?"PUT":"POST",body:JSON.stringify(payload)});setFormOpen(false);setEditing(null);await load();}catch(err){setError(err.message);}}
   async function deactivate(item){if(!confirm(`Deactivate ${item.designation}?`))return;await api(`/inventory/items/${item.id}/deactivate`,{method:"PATCH"});load();}
-  async function previewAssetForm(){if(!selectedUser)return;setLoading(true);setError("");try{setAssetPreview(await api(`/inventory/asset-form/preview?user_id=${selectedUser}`));}catch(err){setError(err.message);}finally{setLoading(false);}}
-  async function requestAssetSigning(phase){setSigningBusy(phase);setError("");setSigningMessage("");try{const result=await api(`/inventory/asset-form/signing-request?user_id=${selectedUser}&phase=${phase}`,{method:"POST"});const signing=await api(`/inventory/asset-form/signing-status?user_id=${selectedUser}`);setAssetPreview(current=>({...current,signing}));setSigningMessage(`${phase==="allocation"?"Allocation":"Return"} signing request ${result.envelope_id} was sent. The signer can review and sign it inside the portal.`);}catch(err){setError(err.message);}finally{setSigningBusy("");}}
   async function runImport(confirm=false){if(!importFile)return;setImporting(true);setError("");const body=new FormData();body.append("file",importFile);try{const result=await api(`/inventory/items/import?confirm=${confirm}`,{method:"POST",body});setImportResult(result);if(confirm)await load();}catch(err){setError(err.message);}finally{setImporting(false);}}
-  function chooseStaff(person){setSelectedStaff(person);setSelectedUser(String(person.id));setStaffQuery(person.full_name);setStaffResults([]);setAssetPreview(null);}
-  function clearStaff(){setSelectedStaff(null);setSelectedUser("");setStaffQuery("");setStaffResults([]);setAssetPreview(null);}
   const logisticsPreview=useMemo(()=>[form.country,form.project,form.category,form.sub_category,form.number].filter(Boolean).join("/"),[form.country,form.project,form.category,form.sub_category,form.number]);
   return <div>
     <div className="pagehead"><div><span className="eyebrow">Asset management</span><h1>IMS</h1><p>Asset register, staff assignments, valuation, and inventory tracking.</p></div>{mode==="register"&&manage&&<div className="actions">{canAccess(user,"can_import_inventory")&&<label className="secondary file-button"><Upload size={16}/>Import<input type="file" accept=".csv,.xlsx" onChange={e=>{setImportFile(e.target.files[0]||null);setImportResult(null);}}/></label>}{importFile&&canAccess(user,"can_import_inventory")&&<button className="secondary" disabled={importing} onClick={()=>runImport(false)}>{importing?"Checking…":"Preview Import"}</button>}{canAccess(user,"can_export_inventory")&&<button className="secondary" onClick={()=>downloadProtected("/inventory/items/export/csv","inventory-register.csv")}><Download size={16}/>{t("exportCsv")}</button>}<button className="primary" onClick={()=>openForm()}><Plus size={16}/>{t("addItem")}</button></div>}</div>
@@ -58,20 +47,8 @@ export default function Inventory(){
         <div className="form-actions"><button className="primary">{t("save")}</button><button type="button" className="ghost" onClick={()=>setFormOpen(false)}>{t("cancel")}</button></div>
       </form>}
     </>}
-    {mode==="form"&&<section className="panel"><div className="empty"><FileText/><h3>Asset Form is not available in the public demo.</h3><p>IMS asset registration, assignments, My Assets, import, and export remain available.</p></div></section>}
-    {mode!=="form"||assetPreview?<section className="panel tablewrap inventory-table">{loading?<div className="loading"><i/>{t("loading")}</div>:(mode==="form"?assetPreview?.assets:data.items)?.length===0?<div className="empty"><PackageSearch/><h3>{mode==="my"?"No assets are assigned to you":"No inventory records"}</h3><p>{mode==="my"?"Assigned assets will appear here automatically.":"Add a record or adjust the filters."}</p></div>:<table><thead><tr><th>Logistics Code</th><th>Designation</th><th>Brand / Model</th><th>Serial</th><th>Location</th><th>Assigned User</th><th>Donor / Project</th><th>Condition</th><th>Current EUR</th><th>Status</th>{mode==="register"&&manage&&<th/>}</tr></thead><tbody>{(mode==="form"?assetPreview?.assets:data.items||[]).map(item=><tr key={item.id}><td><strong>{item.logistics_code}</strong></td><td>{item.designation}<span>{item.sub_category}</span></td><td>{item.brand||"—"}<span>{item.model}</span></td><td>{item.serial_number||"—"}</td><td>{item.location}</td><td>{item.assigned_user_name||"Unassigned"}</td><td>{item.donor||"—"}<span>{item.project}</span></td><td>{item.condition||"—"}</td><td>{item.current_value_euros||"—"}</td><td><span className={`badge ${item.is_active?"active":"disabled"}`}>{item.status}</span></td>{mode==="register"&&manage&&<td><div className="row-actions"><button className="icon" onClick={()=>openForm(item)}><Pencil size={15}/></button><button className="icon danger" onClick={()=>deactivate(item)}><X size={15}/></button></div></td>}</tr>)}</tbody></table>}</section>:null}
-    {mode!=="form"&&<div className="pagination"><button disabled={page<=1} onClick={()=>setPage(page-1)}>Previous</button><span>{page} / {Math.max(data.pages,1)} · {data.total} records</span><button disabled={page>=data.pages} onClick={()=>setPage(page+1)}>Next</button></div>}
+    <section className="panel tablewrap inventory-table">{loading?<div className="loading"><i/>{t("loading")}</div>:data.items?.length===0?<div className="empty"><PackageSearch/><h3>{mode==="my"?"No assets are assigned to you":"No inventory records"}</h3><p>{mode==="my"?"Assigned assets will appear here automatically.":"Add a record or adjust the filters."}</p></div>:<table><thead><tr><th>Logistics Code</th><th>Designation</th><th>Brand / Model</th><th>Serial</th><th>Location</th><th>Assigned User</th><th>Donor / Project</th><th>Condition</th><th>Current EUR</th><th>Status</th>{mode==="register"&&manage&&<th/>}</tr></thead><tbody>{(data.items||[]).map(item=><tr key={item.id}><td><strong>{item.logistics_code}</strong></td><td>{item.designation}<span>{item.sub_category}</span></td><td>{item.brand||"—"}<span>{item.model}</span></td><td>{item.serial_number||"—"}</td><td>{item.location}</td><td>{item.assigned_user_name||"Unassigned"}</td><td>{item.donor||"—"}<span>{item.project}</span></td><td>{item.condition||"—"}</td><td>{item.current_value_euros||"—"}</td><td><span className={`badge ${item.is_active?"active":"disabled"}`}>{item.status}</span></td>{mode==="register"&&manage&&<td><div className="row-actions"><button className="icon" onClick={()=>openForm(item)}><Pencil size={15}/></button><button className="icon danger" onClick={()=>deactivate(item)}><X size={15}/></button></div></td>}</tr>)}</tbody></table>}</section>
+    <div className="pagination"><button disabled={page<=1} onClick={()=>setPage(page-1)}>Previous</button><span>{page} / {Math.max(data.pages,1)} · {data.total} records</span><button disabled={page>=data.pages} onClick={()=>setPage(page+1)}>Next</button></div>
   </div>;
-}
-
-function AssetSigningPanel({signing={},busy,message,canRequest,onRequest}){
-  const signer=(value,index)=>{const recipient=value?.recipients?.[index];return <span className="signature-state"><strong>{recipient?.status==="signed"?"Signed":recipient?.status||"Waiting"}</strong>{recipient?.verification_number&&<small>{recipient.verification_number}</small>}</span>;};
-  const phase=(title,value)=><tr><td><strong>{title}</strong></td><td>{signer(value,0)}</td><td>{signer(value,1)}</td><td><span className={`badge ${value?.status==="completed"?"active":""}`}>{value?.status?.replaceAll("_"," ")||"Not requested"}</span></td></tr>;
-  return <section className="panel asset-signing-panel">
-    <div className="panel-title"><div><span className="eyebrow">In-portal signatures</span><h2>Asset lifecycle status</h2><p>Current status: <strong>{signing.overall_status||"Not Signed"}</strong></p></div><NavLink className="secondary" to="/sign">Open Sign</NavLink></div>
-    {message&&<div className="alert success">{message}</div>}
-    <div className="tablewrap"><table className="asset-signature-status-table"><thead><tr><th>Asset movement</th><th>Employee signature</th><th>Logistics signature</th><th>Status</th></tr></thead><tbody>{phase("Allocation / material received",signing.allocation)}{phase("Return / material received back",signing.return)}</tbody></table></div>
-    {canRequest&&<div className="actions"><button className="primary" disabled={!!busy||["pending","in_progress"].includes(signing.allocation?.status)} onClick={()=>onRequest("allocation")}>{busy==="allocation"?"Sending…":"Request allocation signatures"}</button><button className="secondary" disabled={!!busy||["pending","in_progress"].includes(signing.return?.status)} onClick={()=>onRequest("return")}>{busy==="return"?"Sending…":"Request return signatures"}</button></div>}
-  </section>;
 }
 

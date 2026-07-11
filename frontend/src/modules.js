@@ -23,7 +23,7 @@ export const moduleRegistry = [
 
 const stockUser=["can_access_stock","can_request_stock","can_view_own_stock_requests","can_access_stock_categories"];
 const inventoryUser=["can_access_inventory","can_view_own_assets"];
-const inventoryManager=["can_manage_inventory","can_export_inventory","can_import_inventory","can_export_asset_form"];
+const inventoryManager=["can_manage_inventory","can_export_inventory","can_import_inventory"];
 const stockManager=["can_manage_stock","can_import_stock","can_approve_stock_requests","can_export_stock","can_view_all_stock_requests","can_manage_stock_requests","can_manage_stock_categories","can_access_stock_cards","can_manage_stock_cards","can_export_stock_cards","can_export_stock_card","can_export_stock_movements","can_export_annual_stock_summary"];
 const adminManager=["can_manage_users","can_manage_permissions","can_manage_organization_branding","can_manage_themes","can_manage_dashboards","can_view_all_dashboards"];
 const signUser=["can_access_sign","can_sign_documents","can_view_own_signature_requests","can_download_signed_documents","can_verify_signed_documents","can_upload_own_signature"];

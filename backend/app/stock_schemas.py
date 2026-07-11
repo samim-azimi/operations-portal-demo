@@ -3,9 +3,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas import InventoryItemRead
-
-
 class StockCategoryCreate(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     description: str | None = Field(default=None, max_length=500)
@@ -113,16 +110,6 @@ class ImportPreview(BaseModel):
     invalid: int
     created: int = 0
     rows: list[ImportRow]
-
-
-class AssetFormPreview(BaseModel):
-    user_id: int
-    full_name: str
-    email: str
-    department: str | None
-    generated_at: datetime
-    assets: list[InventoryItemRead]
-    signing: dict = Field(default_factory=dict)
 
 
 class PhysicalCountCreate(BaseModel):
