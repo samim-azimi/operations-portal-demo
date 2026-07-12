@@ -50,6 +50,13 @@ def test_my_assets_only_returns_current_users_assets(client,user_headers,invento
     assert [item["designation"] for item in response.json()["items"]]==["Assigned laptop"]
 
 
+def test_asset_form_endpoints_are_removed_from_public_demo(client,inventory_headers):
+    preview=client.get("/api/inventory/asset-form/preview?user_id=1",headers=inventory_headers)
+    assert preview.status_code==404
+    pdf=client.get("/api/inventory/asset-form/export/pdf?user_id=1",headers=inventory_headers)
+    assert pdf.status_code==404
+
+
 def test_inventory_logistics_code_status_and_export_format(client,inventory_headers):
     payload={
         "status":"In Stock","country":"DEMO","project":"21046","category":"OF",
