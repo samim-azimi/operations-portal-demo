@@ -50,15 +50,19 @@ jobs:
           await browser.close();
 JS
           node inspect.mjs
-      - uses: actions/upload-artifact@v4
+      - name: Upload inspection artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: canva-view-export-test
           path: out/
+          if-no-files-found: warn
           retention-days: 1
       - name: Report temporary run ID
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh issue create \
             --title "TMP_CANVA_EXPORT_RUN_${GITHUB_RUN_ID}" \
-            --body "Temporary workflow run ID: ${GITHUB_RUN_ID}. Safe to close after artifact retrieval."
+            --body "Temporary workflow run ID: ${GITHUB_RUN_ID}. Job result: ${JOB_STATUS:-unknown}. Safe to close after artifact retrieval."
