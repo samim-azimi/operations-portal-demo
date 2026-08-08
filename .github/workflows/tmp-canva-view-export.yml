@@ -1,10 +1,10 @@
 name: Temporary Canva View Export Test
 
 on:
-  push:
-    branches: [main]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
     paths:
-      - '.github/workflows/tmp-canva-view-export.yml'
+      - 'tmp/canva-export-trigger/**'
 
 permissions:
   contents: read
@@ -14,7 +14,6 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -64,5 +63,6 @@ JS
           GH_TOKEN: ${{ github.token }}
         run: |
           gh issue create \
+            --repo "${GITHUB_REPOSITORY}" \
             --title "TMP_CANVA_EXPORT_RUN_${GITHUB_RUN_ID}" \
-            --body "Temporary workflow run ID: ${GITHUB_RUN_ID}. Job result: ${JOB_STATUS:-unknown}. Safe to close after artifact retrieval."
+            --body "Temporary workflow run ID: ${GITHUB_RUN_ID}. Safe to close after artifact retrieval."
