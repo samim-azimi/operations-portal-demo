@@ -1,0 +1,56 @@
+name: Temporary Canva View Export Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tmp-canva-view-export.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Inspect Canva share view
+        env:
+          CANVA_VIEW_URL: https://www.canva.com/d/QuFXvf1Xa4_CqMN
+        run: |
+          mkdir -p out
+          cat > inspect.mjs <<'JS'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const browser = await chromium.launch({headless:true});
+          const page = await browser.newPage({viewport:{width:1440,height:1000}, deviceScaleFactor:1});
+          const response = await page.goto(process.env.CANVA_VIEW_URL, {waitUntil:'domcontentloaded', timeout:120000});
+          console.log('status', response?.status(), 'url', page.url());
+          await page.waitForTimeout(20000);
+          fs.writeFileSync('out/page.html', await page.content());
+          fs.writeFileSync('out/title.txt', await page.title());
+          fs.writeFileSync('out/url.txt', page.url());
+          await page.screenshot({path:'out/page.png', fullPage:true});
+          const stats = await page.evaluate(() => ({
+            canvases:[...document.querySelectorAll('canvas')].map((e,i)=>({i,w:e.width,h:e.height,rect:{x:e.getBoundingClientRect().x,y:e.getBoundingClientRect().y,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height}})),
+            images:[...document.querySelectorAll('img')].slice(0,200).map((e,i)=>({i,src:e.currentSrc||e.src,alt:e.alt,rect:{x:e.getBoundingClientRect().x,y:e.getBoundingClientRect().y,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height}})),
+            buttons:[...document.querySelectorAll('button')].slice(0,200).map((e,i)=>({i,text:(e.innerText||e.getAttribute('aria-label')||'').trim(),aria:e.getAttribute('aria-label')})),
+            bodyText:(document.body.innerText||'').slice(0,30000)
+          }));
+          fs.writeFileSync('out/stats.json', JSON.stringify(stats,null,2));
+          await browser.close();
+JS
+          node inspect.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: canva-view-export-test
+          path: out/
+          retention-days: 1
