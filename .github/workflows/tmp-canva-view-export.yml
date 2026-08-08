@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   inspect:
@@ -54,3 +55,10 @@ JS
           name: canva-view-export-test
           path: out/
           retention-days: 1
+      - name: Report temporary run ID
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "TMP_CANVA_EXPORT_RUN_${GITHUB_RUN_ID}" \
+            --body "Temporary workflow run ID: ${GITHUB_RUN_ID}. Safe to close after artifact retrieval."
